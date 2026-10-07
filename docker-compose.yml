@@ -1,0 +1,53 @@
+
+services:
+  localstack:
+    image: localstack/localstack:1.2.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=kinesis,s3
+      - DEFAULT_REGION=us-east-1
+      - LS_LOG=WARN
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  article-publisher:
+    build: ./populate-script
+    volumes:
+      - ./populate-script:/app
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - NUM_ITERATIONS=10
+      - DATASET_SIZE_MB=1
+    depends_on:
+      - localstack
+
+  article-processor:
+    build: ./processor
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT=http://localstack:4566
+      - KINESIS_STREAM=MyStream
+      - S3_BUCKET=my-bucket
+      - OUTPUT_PREFIX=enriched
+      - BATCH_SIZE=100
+      - KINESIS_START_POSITION=TRIM_HORIZON
+      - LOG_LEVEL=INFO
+    depends_on:
+      - localstack
+      - article-publisher
+
+  test:
+    build:
+      context: .
+      dockerfile: processor/Dockerfile.test
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - localstack
+    profiles:
+      - test
