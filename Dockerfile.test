@@ -1,0 +1,17 @@
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY processor/requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+COPY processor/main.py .
+COPY tests /tests
+
+CMD ["pytest", "-q", "/tests"]
